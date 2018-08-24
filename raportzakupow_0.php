@@ -20,8 +20,6 @@ public function body(){
      }
      return $varible;
     }
-    Base_ThemeCommon::install_default_theme($this->get_type());
-    Base_ThemeCommon::install_default_theme('raportzakupow');
     $theme = $this->init_module('Base/Theme');
 
     $rbo = new RBO_RecordsetAccessor ( 'contact' );
@@ -58,7 +56,7 @@ public function body(){
          '>=planed_purchase_date' => '2017-01-01', 
          '<=planed_purchase_date' =>  date('Y-m-d'),
          '(status' => 'purchased' , '|status' => 'purchased_waiting'
-        ),array(),array('planed_purchase_date' => 'asc'));
+        ),array(),array('planed_purchase_date' => 'asc' , 'company' => 'asc'));
 
         $purchase = set_related_fields($purchase, 'company');
         $theme->assign("css", Base_ThemeCommon::get_template_dir());

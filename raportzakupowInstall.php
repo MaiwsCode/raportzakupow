@@ -10,6 +10,8 @@ class raportzakupowInstall extends ModuleInstall {
     public function install() {
 // Here you can place installation process for the module
     $ret = true;
+    Base_ThemeCommon::install_default_theme($this->get_type());
+    Base_ThemeCommon::install_default_theme('raportzakupow');
         return $ret; // Return false on success and false on failure
     }
 
