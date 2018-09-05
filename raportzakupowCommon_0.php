@@ -9,7 +9,7 @@ defined("_VALID_ACCESS") || die('Direct access forbidden');
 class raportzakupowCommon extends ModuleCommon {
 
     public static function menu() {
-		return array('Raporty' => array('__submenu__' => 1, __('Raport niepotwierdzonych zakupów') => array(
+		return array(_M('Reports') => array('__submenu__' => 1, __('Raport niepotwierdzonych zakupów') => array(
 	    'view'
 			)));
 	}
