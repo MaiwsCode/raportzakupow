@@ -32,6 +32,12 @@ function changeOrderNumber($order){
 
 public function body(){
     Base_ThemeCommon::install_default_theme($this->get_type());
+    if(isset($_REQUEST['__jump_to_RB_table'])){    
+        $rs = new RBO_RecordsetAccessor($_REQUEST['__jump_to_RB_table']);
+        $rb = $rs->create_rb_module ( $this );
+        $this->display_module ( $rb);
+    }    
+
     $orders = array('planed_purchase_date' => 0 , 'status'=>0);
     if($this->get_module_variable("filters")){
         $filters = $this->get_module_variable("filters");
@@ -75,10 +81,11 @@ public function body(){
     $rbo = new RBO_RecordsetAccessor ( 'contact' );
 
     $traders = $rbo->get_records(array('group' => 'trader'),array(),array());
-    $select_options = "";
+    $select_options = "<li><a ".$this->create_href(array('trader' => 0,
+        'who' => "Wszyscy"." Handlowcy"))."> Wszyscy Handlowcy  </a></li>";
     foreach($traders as $trader){
         $select_options .= "<li><a ".$this->create_href(array('trader' => $trader->id,
-         'who' => $trader['first_name']. " ".$trader['last_name'])).">".$trader['first_name']." ".$trader['last_name']. " </a></li>";
+            'who' => $trader['first_name']. " ".$trader['last_name'])).">".$trader['first_name']." ".$trader['last_name']. " </a></li>";
     }
 
     $select = "<ul class='drops'>
@@ -87,7 +94,7 @@ public function body(){
                         <ul>".$select_options."
                     </ul></li></ul>";
 
-    $months = "";
+    $months = "<li><a ".$this->create_href(array('month' => '0'))."> Cały rok </a></li>";
     for($i = 1;$i<=12;$i++){
         $name = date('F', mktime(0, 0, 0, $i, 10));
         $name = __($name);
@@ -100,9 +107,9 @@ public function body(){
                     </ul></li></ul>";
 
     $start = date("Y");
-    $end = $start + 5;
+    $end = $start;;
     $years = "";
-    for($i = $start-5;$i<=$end;$i++){
+    for($i = $start-6;$i<=$end;$i++){
         $years .= "<li><a ".$this->create_href(array('year' => $i)).">".$i. " </a></li>";
     }
 
@@ -120,28 +127,51 @@ public function body(){
         $purchase = null;
 
         $rbo_purchase = new RBO_RecordsetAccessor("custom_agrohandel_purchase_plans");
-        $id = intval($filters['trader']);
+        $id = $filters['trader'];
         $rbo_company = new RBO_RecordsetAccessor("company");
-        $companes = $rbo_company->get_records(array('account_manager' => $id),array(),array());
+        if($id != 0){
+            $companes = $rbo_company->get_records(array('account_manager' => $id),array(),array());
+        }
+        else{
+            $companes = $rbo_company->get_records(array('!account_manager' => ''),array(),array());
+        }
         $ids_company = array();
         foreach($companes as $company){
             $ids_company[] = $company->id;
         }
         $crits = array('(status' => 'purchased' , '|status' => 'purchased_waiting', 'company' => $ids_company);
-        $tmp = $filters['year'].'-'.$filters['month'].'-15';
-        $crits['>=planed_purchase_date'] = date("Y-m-01", strtotime($tmp));
-        $crits['<=planed_purchase_date'] = date("Y-m-t", strtotime($tmp));
+        if($filters['month'] == 0){
+            $tmp = 0;
+            $crits['>=planed_purchase_date'] = $filters['year']."-01-01";
+            $crits['<=planed_purchase_date'] = $filters['year']."-12-31";
+        }else{
+            $tmp = $filters['year'].'-'.$filters['month'].'-15';
+            $crits['>=planed_purchase_date'] = date("Y-m-01", strtotime($tmp));
+            $crits['<=planed_purchase_date'] = date("Y-m-t", strtotime($tmp));
+        }
         $ordersArray = array(); 
         if($orders['planed_purchase_date'] != 0)
             $ordersArray['planed_purchase_date'] = $this->changeOrder($orders['planed_purchase_date']);
         if($orders['status'] != 0 )
             $ordersArray['status'] = $this->changeOrder($orders['status']); 
-        $purchase = $rbo_purchase->get_records($crits,array(),$ordersArray);
-        $purchase = $this->set_related_fields($this,$purchase, 'company');
+        $purchases = $rbo_purchase->get_records($crits,array(),$ordersArray);
+        foreach($purchases as $purchase){
+            $company = Utils_RecordBrowserCommon::get_record('company', $purchase['company']);
+            $opiekun = Utils_RecordBrowserCommon::get_record('contact', $company['account_manager']);
+            $ar = array("Opiekun: " => "<div class='custom_info'>".$opiekun['first_name']." ".$opiekun['last_name']."</div>");
+            $infobox = Utils_TooltipCommon::format_info_tooltip($ar);
+            $infobox = Utils_TooltipCommon::create($purchase->get_val("company",false),$infobox,$help=true, $max_width=300);
+            $purchase['company'] = $infobox;
+        }
         $theme->assign("css", Base_ThemeCommon::get_template_dir());
-        $theme->assign('purchases',$purchase);
+        $theme->assign('purchases',$purchases);
         $theme->assign('who',$filters['traderFullName']);
-        $theme->assign('month',__(date("F",strtotime($tmp))));
+        if($tmp == 0){
+            $theme->assign('month', "Cały rok");
+
+        }else{
+            $theme->assign('month',__(date("F",strtotime($tmp))));
+        }
         $theme->assign('year',$filters['year']);
         $theme->assign('select',$select);
         $theme->assign('orders',$orders);
@@ -158,7 +188,12 @@ public function body(){
         $theme->assign('select',$select);
         $theme->assign('yearSelect',$year);
         $theme->assign('monthSelect',$month);
-        $theme->assign('month',__(date("F",strtotime($tmp))));
+        if($tmp == 0){
+            $theme->assign('month', "Cały rok");
+
+        }else{
+            $theme->assign('month',__(date("F",strtotime($tmp))));
+        }
         $theme->assign('year',$filters['year']);
         $theme->assign('statusOrder',$statusFilter);
         $theme->assign('dateOrder',$dateFilter);
